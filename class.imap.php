@@ -25,6 +25,7 @@ class Imap {
     private $errors = array();
     private $attachments = array();
     private $attachments_dir = 'attachments/';
+    private $limit = 10;
 
     public function connect($hostname, $username, $password) {
         $connection = imap_open($hostname, $username, $password) or die('Cannot connect to Mail: ' . imap_last_error());
@@ -41,10 +42,15 @@ class Imap {
         $messages = array();
         if ($emails) {
             $this->emails = $emails;
+            $i = 0;
             foreach ($emails as $email_number) {
                 $this->attachments = array();
                 $uid = imap_uid($stream, $email_number);
                 $messages[] = $this->loadMessage($uid, $type);
+                if ($i == $this->limit) {
+                    break;
+                }
+                $i++;
             }
         }
         return $messages;
