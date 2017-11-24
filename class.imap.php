@@ -185,18 +185,29 @@ class Imap {
         if (!is_numeric($encoding)) {
             $encoding = strtolower($encoding);
         }
-        switch (true) {
-            case $encoding === 'quoted-printable':
-            case $encoding === 4:
-                return quoted_printable_decode($data);
-
-            case $encoding === 'base64':
-            case $encoding === 3:
-                return base64_decode($data);
-
-            default:
-                return $data;
-        }
+         switch ($encoding) {
+                  # 7BIT
+                  case 0:
+                      return $data;
+                  # 8BIT
+                  case 1:
+                      return quoted_printable_decode(imap_8bit($data));
+                  # BINARY
+                  case 2:
+                      return imap_binary($data);
+                  # BASE64
+                  case 3:
+                      return imap_base64($data);
+                  # QUOTED-PRINTABLE
+                  case 4:
+                      return quoted_printable_decode($data);
+                  # OTHER
+                  case 5:
+                      return $data;
+                  # UNKNOWN
+                  default:
+                      return $data;
+              }
     }
 
     private function getParametersFromStructure($structure) {
