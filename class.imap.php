@@ -14,6 +14,7 @@
   3. $messages = $imap->getMessages('text'); //Array of messages
  * in $attachments_dir property set directory for attachments
  * in the __destructor set errors log
+ * Sort messages when add to getMessages('text', 'asc') asc/desc
  */
 
 class Imap {
@@ -36,9 +37,12 @@ class Imap {
         return true;
     }
 
-    public function getMessages($type = 'text') {
+    public function getMessages($type = 'text', $sort = 'asc') {
         $stream = $this->imapStream;
         $emails = imap_search($stream, 'ALL');
+        if($sort == 'desc') {
+            krsort($emails);
+        }
         $messages = array();
         if ($emails) {
             $this->emails = $emails;
