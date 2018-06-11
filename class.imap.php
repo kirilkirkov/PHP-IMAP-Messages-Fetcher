@@ -6,15 +6,10 @@
  * GitHub: https://github.com/kirilkirkov
  * Usage example:
   1. $imap = new Imap();
-  2. $connection_result = $imap->connect('{imap.gmail.com:993/imap/ssl}INBOX', 'user@gmail.com', 'secret_password');
-  if ($connection_result !== true) {
-  echo $connection_result; //Error message!
-  exit;
-  }
+  2. $imap->connect('{imap.gmail.com:993/imap/ssl}INBOX', 'user@gmail.com', 'secret_password');
   3. $messages = $imap->getMessages('text'); //Array of messages
  * in $attachments_dir property set directory for attachments
  * in the __destructor set errors log
- * Sort messages when add to getMessages('text', 'asc') asc/desc
  */
 
 class Imap {
@@ -30,9 +25,6 @@ class Imap {
 
     public function connect($hostname, $username, $password) {
         $connection = imap_open($hostname, $username, $password) or die('Cannot connect to Mail: ' . imap_last_error());
-        if (!preg_match("/Resource.id.*/", (string) $connection)) {
-            return $connection; //return error message
-        }
         $this->imapStream = $connection;
         return true;
     }
