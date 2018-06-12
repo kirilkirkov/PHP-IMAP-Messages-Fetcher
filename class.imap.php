@@ -172,8 +172,11 @@ class Imap
          */
         if (isset($this->inlineAttachments) && !empty($this->inlineAttachments)) {
             preg_match('/"cid:(.*?)"/', $message, $cids);
-            return preg_replace('/"cid:(.*?)"/', '"' . $this->attachments_dir . $this->inlineAttachments[$cids[1]] . '"', $message);
+            if (!empty($cids)) {
+                $message = mb_ereg_replace('/"cid:(.*?)"/', '"' . $this->attachments_dir . $this->inlineAttachments[$cids[1]] . '"', $message);
+            }
         }
+        return $message;
     }
 
     private function setFileName($text)
