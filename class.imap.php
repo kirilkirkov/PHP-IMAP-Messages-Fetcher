@@ -12,7 +12,8 @@
  * in the __destructor set errors log
  */
 
-class Imap {
+class Imap
+{
 
     private $imapStream;
     private $plaintextMessage;
@@ -23,16 +24,18 @@ class Imap {
     private $attachments_dir = 'attachments/';
     private $limit = 10;
 
-    public function connect($hostname, $username, $password) {
+    public function connect($hostname, $username, $password)
+    {
         $connection = imap_open($hostname, $username, $password) or die('Cannot connect to Mail: ' . imap_last_error());
         $this->imapStream = $connection;
         return true;
     }
 
-    public function getMessages($type = 'text', $sort = 'asc') {
+    public function getMessages($type = 'text', $sort = 'asc')
+    {
         $stream = $this->imapStream;
         $emails = imap_search($stream, 'ALL');
-        if($sort == 'desc') {
+        if ($sort == 'desc') {
             krsort($emails);
         }
         $messages = array();
@@ -42,7 +45,7 @@ class Imap {
             foreach ($emails as $email_number) {
                 $this->attachments = array();
                 $uid = imap_uid($stream, $email_number);
-                $messages[] = $this->loadMessage($uid, $type);
+                $messages[$email_number] = $this->loadMessage($uid, $type, $email_number);
                 if ($i == $this->limit) {
                     break;
                 }
@@ -52,13 +55,26 @@ class Imap {
         return $messages;
     }
 
-    private function loadMessage($uid, $type) {
+    /*
+     * Give message_numer from 
+     * returned array from - getMessages
+     */
+
+    public function deleteMessage($messageId)
+    {
+        $result = imap_delete($this->imapStream, $messageId);
+        var_dump($result);
+    }
+
+    private function loadMessage($uid, $type, $email_number)
+    {
         $overview = $this->getOverview($uid);
 
         $array = array();
         $array['subject'] = isset($overview->subject) ? $this->decode($overview->subject) : '';
         $array['date'] = strtotime($overview->date);
         $array['message_id'] = $overview->message_id;
+        $array['message_number'] = $email_number;
         $array['uid'] = $overview->uid;
         $array['references'] = isset($overview->references) ? $overview->references : 0;
         $headers = $this->getHeaders($uid);
@@ -77,7 +93,8 @@ class Imap {
         return $array;
     }
 
-    private function processStructure($uid, $structure, $partIdentifier = null) {
+    private function processStructure($uid, $structure, $partIdentifier = null)
+    {
         $parameters = $this->getParametersFromStructure($structure);
 
         if ((isset($parameters['name']) || isset($parameters['filename'])) || (isset($structure->subtype) && strtolower($structure->subtype) == 'rfc822')
@@ -133,11 +150,17 @@ class Imap {
         }
     }
 
-    private function setFileName($text) {
+    private function setFileName($text)
+    {
         $this->filename = $this->decode($text);
     }
 
-    private function saveToDirectory($path, $uid, $partIdentifier) { //save attachments to directory
+    /*
+     * save attachments to directory
+     */
+
+    private function saveToDirectory($path, $uid, $partIdentifier)
+    {
         $path = rtrim($path, '/') . '/';
         $full_file_place = $path . $this->filename;
 
@@ -169,7 +192,7 @@ class Imap {
                 $streamFilter = null;
         }
 
-        $result = imap_savebody($this->imapStream, $filePointer, $uid, $partIdentifier ? : 1, FT_UID);
+        $result = imap_savebody($this->imapStream, $filePointer, $uid, $partIdentifier ?: 1, FT_UID);
         if ($streamFilter) {
             stream_filter_remove($streamFilter);
         }
@@ -177,36 +200,38 @@ class Imap {
         return $result;
     }
 
-    private function decodeMessage($data, $encoding) {
+    private function decodeMessage($data, $encoding)
+    {
         if (!is_numeric($encoding)) {
             $encoding = strtolower($encoding);
         }
-         switch ($encoding) {
-                  # 7BIT
-                  case 0:
-                      return $data;
-                  # 8BIT
-                  case 1:
-                      return quoted_printable_decode(imap_8bit($data));
-                  # BINARY
-                  case 2:
-                      return imap_binary($data);
-                  # BASE64
-                  case 3:
-                      return imap_base64($data);
-                  # QUOTED-PRINTABLE
-                  case 4:
-                      return quoted_printable_decode($data);
-                  # OTHER
-                  case 5:
-                      return $data;
-                  # UNKNOWN
-                  default:
-                      return $data;
-              }
+        switch ($encoding) {
+            # 7BIT
+            case 0:
+                return $data;
+            # 8BIT
+            case 1:
+                return quoted_printable_decode(imap_8bit($data));
+            # BINARY
+            case 2:
+                return imap_binary($data);
+            # BASE64
+            case 3:
+                return imap_base64($data);
+            # QUOTED-PRINTABLE
+            case 4:
+                return quoted_printable_decode($data);
+            # OTHER
+            case 5:
+                return $data;
+            # UNKNOWN
+            default:
+                return $data;
+        }
     }
 
-    private function getParametersFromStructure($structure) {
+    private function getParametersFromStructure($structure)
+    {
         $parameters = array();
         if (isset($structure->parameters))
             foreach ($structure->parameters as $parameter)
@@ -219,7 +244,8 @@ class Imap {
         return $parameters;
     }
 
-    private function getOverview($uid) {
+    private function getOverview($uid)
+    {
         $results = imap_fetch_overview($this->imapStream, $uid, FT_UID);
         $messageOverview = array_shift($results);
         if (!isset($messageOverview->date)) {
@@ -228,7 +254,8 @@ class Imap {
         return $messageOverview;
     }
 
-    private function decode($text) {
+    private function decode($text)
+    {
         if (null === $text) {
             return null;
         }
@@ -240,7 +267,8 @@ class Imap {
         return $result;
     }
 
-    private function processAddressObject($addresses) {
+    private function processAddressObject($addresses)
+    {
         $outputAddresses = array();
         if (is_array($addresses))
             foreach ($addresses as $address) {
@@ -256,7 +284,8 @@ class Imap {
         return $outputAddresses;
     }
 
-    private function getHeaders($uid) {
+    private function getHeaders($uid)
+    {
         $rawHeaders = $this->getRawHeaders($uid);
         $headerObject = imap_rfc822_parse_headers($rawHeaders);
         if (isset($headerObject->date)) {
@@ -269,17 +298,20 @@ class Imap {
         return $this->headers;
     }
 
-    private function getRawHeaders($uid) {
+    private function getRawHeaders($uid)
+    {
         $rawHeaders = imap_fetchheader($this->imapStream, $uid, FT_UID);
         return $rawHeaders;
     }
 
-    private function getStructure($uid) {
+    private function getStructure($uid)
+    {
         $structure = imap_fetchstructure($this->imapStream, $uid, FT_UID);
         return $structure;
     }
 
-    public function __destruct() {
+    public function __destruct()
+    {
         if (!empty($this->errors)) {
             foreach ($this->errors as $error) {
                 //SAVE YOUR LOG OF ERRORS
