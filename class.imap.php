@@ -90,6 +90,7 @@ class Imap
             }
         }
         $array['message'] = $type == 'text' ? $this->plaintextMessage : $this->htmlMessage;
+        $array['message'] = $this->replaceInlineImagesSrcWithRealPath($array['message']);
         $array['attachments'] = $this->attachments;
 
         return $array;
@@ -110,6 +111,16 @@ class Imap
             $result_save = $this->saveToDirectory($this->attachments_dir, $uid, $partIdentifier);
             if ($result_save === true) {
                 $this->attachments[] = $this->filename;
+            }
+            /*
+             * If have inline image in email body
+             * set array with key of cid and value of filename
+             * after that we replace it in html body
+             */
+            if ($parameters['disposition'] == 'INLINE') {
+                $parameters['id'] = str_replace('<', '', $parameters['id']);
+                $parameters['id'] = str_replace('>', '', $parameters['id']);
+                $this->inlineAttachments[$parameters['id']] = $this->filename;
             }
         } elseif ($structure->type == 0 || $structure->type == 1) {
             $messageBody = isset($partIdentifier) ?
@@ -145,10 +156,23 @@ class Imap
         if (isset($structure->parts)) {
             foreach ($structure->parts as $partIndex => $part) {
                 $partId = $partIndex + 1;
-                if (isset($partIdentifier))
+                if (isset($partIdentifier)) {
                     $partId = $partIdentifier . '.' . $partId;
+                }
                 $this->processStructure($uid, $part, $partId);
             }
+        }
+    }
+
+    private function replaceInlineImagesSrcWithRealPath($message)
+    {
+        /*
+         * If have inline attachments saved
+         * replace images src with real path of attachments if are same
+         */
+        if (isset($this->inlineAttachments) && !empty($this->inlineAttachments)) {
+            preg_match('/"cid:(.*?)"/', $message, $cids);
+            return preg_replace('/"cid:(.*?)"/', '"' . $this->attachments_dir . $this->inlineAttachments[$cids[1]] . '"', $message);
         }
     }
 
@@ -235,13 +259,18 @@ class Imap
     private function getParametersFromStructure($structure)
     {
         $parameters = array();
-        if (isset($structure->parameters))
-            foreach ($structure->parameters as $parameter)
+        if (isset($structure->parameters)) {
+            foreach ($structure->parameters as $parameter) {
                 $parameters[strtolower($parameter->attribute)] = $parameter->value;
-
-        if (isset($structure->dparameters))
-            foreach ($structure->dparameters as $parameter)
+            }
+        }
+        if (isset($structure->dparameters)) {
+            foreach ($structure->dparameters as $parameter) {
                 $parameters[strtolower($parameter->attribute)] = $parameter->value;
+            }
+        }
+        $parameters['disposition'] = $structure->disposition;
+        $parameters['id'] = $structure->id;
 
         return $parameters;
     }
