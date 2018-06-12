@@ -35,7 +35,7 @@ class Imap
     {
         $stream = $this->imapStream;
         $emails = imap_search($stream, 'ALL');
-        if ($sort == 'desc') {
+        if (strtolower($sort) == 'desc') {
             krsort($emails);
         }
         $messages = array();
@@ -58,12 +58,14 @@ class Imap
     /*
      * Give message_numer from 
      * returned array from - getMessages
+     * if you want to delete message by UID, not Message number
+     * set FT_UID to $uid. 
+     * Example $imap->deleteMessage(221, FT_UID); - 221 is uid
      */
 
-    public function deleteMessage($messageId)
+    public function deleteMessage($messageId, $uid = 0)
     {
-        $result = imap_delete($this->imapStream, $messageId);
-        var_dump($result);
+        imap_delete($this->imapStream, $messageId, $uid);
     }
 
     private function loadMessage($uid, $type, $email_number)
