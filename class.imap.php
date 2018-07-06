@@ -24,6 +24,13 @@ class Imap
     private $attachments_dir = 'attachments/';
     private $limit = 10;
 
+    public function __construct()
+    {
+        if (!file_exists('attachments')) {
+            mkdir('attachments', 0777, true);
+        }
+    }
+
     public function connect($hostname, $username, $password)
     {
         $connection = imap_open($hostname, $username, $password) or die('Cannot connect to Mail: ' . imap_last_error());
