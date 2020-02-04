@@ -7,7 +7,7 @@
  * Usage example:
   1. $imap = new Imap();
   2. $imap->connect('{imap.gmail.com:993/imap/ssl}INBOX', 'user@gmail.com', 'secret_password');
-  3. $messages = $imap->getMessages('text'); //Array of messages
+  3. $messages = $imap->getMessages('text'); // Array of messages
  * in $attachments_dir property set directory for attachments
  * in the __destructor set errors log
  */
@@ -31,6 +31,12 @@ class Imap
         }
     }
 
+    public function setLimit(Int $limit)
+    {
+        $this->limit = $limit;
+        return $this;
+    }
+
     public function connect($hostname, $username, $password)
     {
         $connection = imap_open($hostname, $username, $password) or die('Cannot connect to Mail: ' . imap_last_error());
@@ -41,15 +47,14 @@ class Imap
     public function getMessages($type = 'text', $sort = 'asc')
     {
         $stream = $this->imapStream;
-        $emails = imap_search($stream, 'ALL');
+        $this->emails = imap_search($stream, 'ALL');
         if (strtolower($sort) == 'desc') {
-            krsort($emails);
+            krsort($this->emails);
         }
         $messages = array();
-        if ($emails) {
-            $this->emails = $emails;
-            $i = 0;
-            foreach ($emails as $email_number) {
+        if ($this->emails) {
+            $i = 1;
+            foreach ($this->emails as $email_number) {
                 $this->attachments = array();
                 $uid = imap_uid($stream, $email_number);
                 $messages[$email_number] = $this->loadMessage($uid, $type, $email_number);
@@ -86,8 +91,11 @@ class Imap
         $array['message_number'] = $email_number;
         $array['uid'] = $overview->uid;
         $array['references'] = isset($overview->references) ? $overview->references : 0;
+
         $headers = $this->getHeaders($uid);
         $array['from'] = isset($headers->from) ? $this->processAddressObject($headers->from) : array('');
+        $array['cc'] = isset($headers->cc) ? $this->processAddressObject($headers->cc) : array('');
+
         $structure = $this->getStructure($uid);
         if (!isset($structure->parts)) { // not multipart
             $this->processStructure($uid, $structure);
@@ -279,8 +287,12 @@ class Imap
                 $parameters[strtolower($parameter->attribute)] = $parameter->value;
             }
         }
-        $parameters['disposition'] = $structure->disposition;
-        $parameters['id'] = $structure->id;
+        if($structure->ifdisposition) {
+            $parameters['disposition'] = $structure->disposition;
+        }
+        if($structure->ifid) {
+            $parameters['id'] = $structure->id;
+        }
 
         return $parameters;
     }
@@ -311,7 +323,7 @@ class Imap
     private function processAddressObject($addresses)
     {
         $outputAddresses = array();
-        if (is_array($addresses))
+        if (is_array($addresses) && count($addresses) > 0)
             foreach ($addresses as $address) {
                 if (property_exists($address, 'mailbox') && $address->mailbox != 'undisclosed-recipients') {
                     $currentAddress = array();
@@ -319,7 +331,7 @@ class Imap
                     if (isset($address->personal)) {
                         $currentAddress['name'] = $this->decode($address->personal);
                     }
-                    $outputAddresses = $currentAddress;
+                    $outputAddresses[] = $currentAddress;
                 }
             }
         return $outputAddresses;
